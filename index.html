@@ -2,153 +2,115 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Batalha de Chefão - Foguete</title>
+    <title>Fundo Sistema Solar</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Arial', sans-serif; }
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(circle, #1b2735 0%, #000 100%);
-        }
-
-        /* Barra de Vida do Inimigo */
-        #health-container {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 300px;
-            height: 20px;
-            background: #444;
-            border: 2px solid #fff;
-            border-radius: 10px;
+        body {
+            margin: 0;
             overflow: hidden;
+            background: #050505;
         }
-        #health-bar {
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, #ff0000, #ff5555);
-            transition: width 0.2s ease-in-out;
-        }
-
-        /* Naves */
-        .ship { position: absolute; width: 50px; height: 50px; }
-        #player { background: #00d4ff; clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%); z-index: 10; }
-        #enemy { background: #ff0055; clip-path: polygon(50% 100%, 100% 0%, 50% 20%, 0% 0%); }
-
-        /* Tiros */
-        .bullet { position: absolute; width: 4px; height: 15px; border-radius: 2px; }
-        .p-bullet { background: #00d4ff; box-shadow: 0 0 10px #00d4ff; }
-        .e-bullet { background: #ff0055; box-shadow: 0 0 10px #ff0055; }
-
-        #msg {
-            display: none;
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            color: #fff; text-align: center; font-size: 30px;
+        canvas {
+            display: block;
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <div id="health-container"><div id="health-bar"></div></div>
-    <div id="msg"><h1>VITÓRIA!</h1><button onclick="location.reload()">Reiniciar</button></div>
-    <div id="player" class="ship"></div>
-    <div id="enemy" class="ship"></div>
-</div>
+<canvas id="solarSystem"></canvas>
 
 <script>
-    const container = document.getElementById('game-container');
-    const playerEl = document.getElementById('player');
-    const enemyEl = document.getElementById('enemy');
-    const healthBar = document.getElementById('health-bar');
-    const msg = document.getElementById('msg');
+    const canvas = document.getElementById('solarSystem');
+    const ctx = canvas.getContext('2d');
 
-    let enemyLife = 200; // Vida total do inimigo
-    let gameActive = true;
-    let player = { x: window.innerWidth/2, y: window.innerHeight - 80 };
-    let enemy = { x: window.innerWidth/2, y: 60, speed: 4 };
-    let bullets = [];
-    let keys = {};
+    let width, height;
+    const planets = [];
+    const stars = [];
 
-    window.onkeydown = e => keys[e.code] = true;
-    window.onkeyup = e => keys[e.code] = false;
+    // Configurações dos planetas (distância, raio, velocidade, cor)
+    const planetConfig = [
+        { dist: 60, radius: 4, speed: 0.04, color: '#A5A5A5' }, // Mercúrio
+        { dist: 90, radius: 7, speed: 0.02, color: '#E3BB76' }, // Vênus
+        { dist: 130, radius: 8, speed: 0.015, color: '#2271B3' }, // Terra
+        { dist: 170, radius: 6, speed: 0.01, color: '#E27B58' }, // Marte
+        { dist: 240, radius: 15, speed: 0.005, color: '#D39C7E' } // Júpiter
+    ];
 
-    function fire(x, y, isPlayer) {
-        if(!gameActive) return;
-        const b = document.createElement('div');
-        b.className = `bullet ${isPlayer ? 'p-bullet' : 'e-bullet'}`;
-        b.style.left = x + 23 + 'px';
-        b.style.top = y + 'px';
-        container.appendChild(b);
-        bullets.push({ el: b, x: x + 23, y: y, isPlayer });
+    function init() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+
+        // Gerar estrelas de fundo
+        stars.length = 0;
+        for (let i = 0; i < 400; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                size: Math.random() * 1.5,
+                opacity: Math.random()
+            });
+        }
+
+        // Inicializar ângulos dos planetas
+        planets.length = 0;
+        planetConfig.forEach(p => {
+            planets.push({ ...p, angle: Math.random() * Math.PI * 2 });
+        });
     }
 
-    // Loops de tiro
-    setInterval(() => fire(player.x, player.y - 20, true), 250);
-    setInterval(() => fire(enemy.x, enemy.y + 50, false), 800);
+    function draw() {
+        ctx.fillStyle = '#050505';
+        ctx.fillRect(0, 0, width, height);
 
-    function update() {
-        if(!gameActive) return;
+        // Desenhar Estrelas
+        ctx.fillStyle = "white";
+        stars.forEach(s => {
+            ctx.globalAlpha = s.opacity;
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
 
-        // Movimento Jogador
-        if(keys['ArrowLeft'] && player.x > 0) player.x -= 8;
-        if(keys['ArrowRight'] && player.x < window.innerWidth - 50) player.x += 8;
-        playerEl.style.left = player.x + 'px';
-        playerEl.style.top = player.y + 'px';
+        const centerX = width / 2;
+        const centerY = height / 2;
 
-        // Movimento IA Inimigo
-        if(enemy.x < player.x) enemy.x += enemy.speed;
-        else if(enemy.x > player.x) enemy.x -= enemy.speed;
-        enemyEl.style.left = enemy.x + 'px';
+        // Desenhar Sol
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = "yellow";
+        ctx.fillStyle = "#FFD700";
+        ctx.fill();
+        ctx.shadowBlur = 0;
 
-        // Processar Projéteis
-        bullets.forEach((b, i) => {
-            b.y += b.isPlayer ? -12 : 7;
-            b.el.style.top = b.y + 'px';
+        // Desenhar Órbitas e Planetas
+        planets.forEach(p => {
+            // Órbita
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, p.dist, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
+            ctx.stroke();
 
-            // Colisão com Inimigo
-            if(b.isPlayer && b.y < enemy.y + 50 && b.x > enemy.x && b.x < enemy.x + 50) {
-                enemyLife -= 10; // Cada tiro tira 10 de vida
-                updateHealth();
-                removeB(b, i);
-            }
-            
-            // Colisão com Jogador (Opcional: reduzir pontos ou vida)
-            if(!b.isPlayer && b.y > player.y && b.x > player.x && b.x < player.x + 50) {
-                removeB(b, i);
-                container.style.boxShadow = "inset 0 0 50px red";
-                setTimeout(() => container.style.boxShadow = "none", 100);
-            }
+            // Posição do Planeta
+            const px = centerX + Math.cos(p.angle) * p.dist;
+            const py = centerY + Math.sin(p.angle) * p.dist;
 
-            if(b.y < -20 || b.y > window.innerHeight) removeB(b, i);
+            ctx.beginPath();
+            ctx.arc(px, py, p.radius, 0, Math.PI * 2);
+            ctx.fillStyle = p.color;
+            ctx.fill();
+
+            // Atualizar ângulo para o próximo frame
+            p.angle += p.speed;
         });
 
-        requestAnimationFrame(update);
+        requestAnimationFrame(draw);
     }
 
-    function removeB(b, i) {
-        b.el.remove();
-        bullets.splice(i, 1);
-    }
-
-    function updateHealth() {
-        const percent = (enemyLife / 200) * 100;
-        healthBar.style.width = percent + "%";
-
-        if(enemyLife <= 0) {
-            gameActive = false;
-            enemyEl.style.display = 'none';
-            msg.style.display = 'block';
-            container.style.background = "#fff"; // Flash de explosão
-            setTimeout(() => container.style.background = "black", 100);
-        }
-    }
-
-    update();
+    window.addEventListener('resize', init);
+    init();
+    draw();
 </script>
+
 </body>
 </html>
