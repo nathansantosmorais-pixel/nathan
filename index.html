@@ -84,3 +84,46 @@
         // Movimento Jogador
         if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
         if (keys['ArrowRight'] && player.x < window.innerWidth - 40) player.x += player.speed;
+        playerEl.style.left = player.x + 'px';
+        playerEl.style.top = player.y + 'px';
+
+        // IA do Inimigo (Perseguição Suave e Desvio)
+        if (enemy.x < player.x) enemy.x += enemy.speed;
+        else if (enemy.x > player.x) enemy.x -= enemy.speed;
+        enemyEl.style.left = enemy.x + 'px';
+        enemyEl.style.top = enemy.y + 'px';
+
+        // Lógica dos Tiros
+        bullets.forEach((b, index) => {
+            if (b.player) b.y -= 10; else b.y += 7;
+            b.el.style.top = b.y + 'px';
+
+            // Colisão com Inimigo
+            if (b.player && b.x > enemy.x && b.x < enemy.x + 40 && b.y < enemy.y + 40 && b.y > enemy.y) {
+                pScore++;
+                resetBullet(b, index);
+            }
+            // Colisão com Jogador
+            if (!b.player && b.x > player.x && b.x < player.x + 40 && b.y > player.y && b.y < player.y + 40) {
+                eScore++;
+                resetBullet(b, index);
+            }
+
+            // Remover se sair da tela
+            if (b.y < 0 || b.y > window.innerHeight) resetBullet(b, index);
+        });
+
+        document.getElementById('p-score').innerText = pScore;
+        document.getElementById('e-score').innerText = eScore;
+        requestAnimationFrame(update);
+    }
+
+    function resetBullet(b, index) {
+        b.el.remove();
+        bullets.splice(index, 1);
+    }
+
+    update();
+</script>
+</body>
+</html>
