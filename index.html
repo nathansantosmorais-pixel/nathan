@@ -2,9 +2,9 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Duelo Espacial: Foguete vs IA</title>
+    <title>Missão Final: 200 Pontos</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', sans-serif; }
         #game-container {
             position: relative;
             width: 100vw;
@@ -12,40 +12,45 @@
             background: radial-gradient(circle, #1b2735 0%, #090a0f 100%);
         }
         
-        /* Estilo dos Foguetes */
-        .ship {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            transition: transform 0.1s;
-        }
-
+        .ship { position: absolute; width: 45px; height: 45px; }
         #player { background: #00f2ff; clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%); }
         #enemy { background: #ff0055; clip-path: polygon(50% 100%, 100% 0%, 50% 20%, 0% 0%); }
 
-        /* Tiros */
-        .bullet {
-            position: absolute;
-            width: 4px;
-            height: 15px;
-            border-radius: 2px;
-        }
+        .bullet { position: absolute; width: 4px; height: 15px; border-radius: 2px; }
         .player-bullet { background: #00f2ff; box-shadow: 0 0 10px #00f2ff; }
         .enemy-bullet { background: #ff0055; box-shadow: 0 0 10px #ff0055; }
 
-        #score-board {
+        #ui {
             position: absolute;
             top: 20px;
-            left: 20px;
+            width: 100%;
+            text-align: center;
             color: white;
-            font-size: 20px;
+            font-size: 24px;
+            text-shadow: 2px 2px #000;
+        }
+
+        #victory-screen {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00f2ff;
+            text-align: center;
+            z-index: 1000;
         }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    <div id="score-board">Jogador: <span id="p-score">0</span> | Inimigo: <span id="e-score">0</span></div>
+    <div id="ui">PONTOS: <span id="p-score">0</span> / 200</div>
+    <div id="victory-screen">
+        <h1>MISSIÃO CUMPRIDA!</h1>
+        <p>O inimigo foi destruído.</p>
+        <button onclick="location.reload()">Jogar Novamente</button>
+    </div>
     <div id="player" class="ship"></div>
     <div id="enemy" class="ship"></div>
 </div>
@@ -54,73 +59,89 @@
     const container = document.getElementById('game-container');
     const playerEl = document.getElementById('player');
     const enemyEl = document.getElementById('enemy');
+    const victoryScreen = document.getElementById('victory-screen');
     
-    let pScore = 0, eScore = 0;
+    let pScore = 0;
+    let gameActive = true;
     
-    // Estados iniciais
-    let player = { x: window.innerWidth/2, y: window.innerHeight - 80, speed: 8 };
-    let enemy = { x: window.innerWidth/2, y: 50, speed: 4 };
+    let player = { x: window.innerWidth/2, y: window.innerHeight - 80, speed: 10 };
+    let enemy = { x: window.innerWidth/2, y: 50, speed: 5 };
     let keys = {};
     let bullets = [];
 
-    // Controles
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 
     function createBullet(x, y, isPlayer) {
+        if (!gameActive) return;
         const b = document.createElement('div');
         b.className = `bullet ${isPlayer ? 'player-bullet' : 'enemy-bullet'}`;
-        b.style.left = x + 18 + 'px';
+        b.style.left = x + 20 + 'px';
         b.style.top = y + 'px';
         container.appendChild(b);
-        bullets.push({ el: b, x: x + 18, y: y, player: isPlayer });
+        bullets.push({ el: b, x: x + 20, y: y, player: isPlayer });
     }
 
-    // Atirar automaticamente
-    setInterval(() => createBullet(player.x, player.y - 20, true), 400);
-    setInterval(() => createBullet(enemy.x, enemy.y + 40, false), 600);
+    // Intervalos de tiro
+    const playerShoot = setInterval(() => createBullet(player.x, player.y - 20, true), 300);
+    const enemyShoot = setInterval(() => createBullet(enemy.x, enemy.y + 40, false), 600);
 
     function update() {
-        // Movimento Jogador
+        if (!gameActive) return;
+
+        // Movimento do Jogador
         if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
-        if (keys['ArrowRight'] && player.x < window.innerWidth - 40) player.x += player.speed;
+        if (keys['ArrowRight'] && player.x < window.innerWidth - 45) player.x += player.speed;
         playerEl.style.left = player.x + 'px';
         playerEl.style.top = player.y + 'px';
 
-        // IA do Inimigo (Perseguição Suave e Desvio)
+        // IA do Inimigo (Segue o jogador)
         if (enemy.x < player.x) enemy.x += enemy.speed;
         else if (enemy.x > player.x) enemy.x -= enemy.speed;
         enemyEl.style.left = enemy.x + 'px';
-        enemyEl.style.top = enemy.y + 'px';
 
-        // Lógica dos Tiros
+        // Lógica dos Tiros e Colisões
         bullets.forEach((b, index) => {
-            if (b.player) b.y -= 10; else b.y += 7;
+            if (b.player) b.y -= 12; else b.y += 8;
             b.el.style.top = b.y + 'px';
 
-            // Colisão com Inimigo
-            if (b.player && b.x > enemy.x && b.x < enemy.x + 40 && b.y < enemy.y + 40 && b.y > enemy.y) {
-                pScore++;
-                resetBullet(b, index);
-            }
-            // Colisão com Jogador
-            if (!b.player && b.x > player.x && b.x < player.x + 40 && b.y > player.y && b.y < player.y + 40) {
-                eScore++;
-                resetBullet(b, index);
+            // Jogador acertou o Inimigo
+            if (b.player && b.x > enemy.x && b.x < enemy.x + 45 && b.y < enemy.y + 45) {
+                pScore += 10;
+                removeBullet(b, index);
+                checkWin();
             }
 
-            // Remover se sair da tela
-            if (b.y < 0 || b.y > window.innerHeight) resetBullet(b, index);
+            // Inimigo acertou o Jogador
+            if (!b.player && b.x > player.x && b.x < player.x + 45 && b.y > player.y) {
+                pScore = Math.max(0, pScore - 5); // Penalidade se for atingido
+                removeBullet(b, index);
+            }
+
+            if (b.y < 0 || b.y > window.innerHeight) removeBullet(b, index);
         });
 
         document.getElementById('p-score').innerText = pScore;
-        document.getElementById('e-score').innerText = eScore;
         requestAnimationFrame(update);
     }
 
-    function resetBullet(b, index) {
+    function removeBullet(b, index) {
         b.el.remove();
         bullets.splice(index, 1);
+    }
+
+    function checkWin() {
+        if (pScore >= 200) {
+            gameActive = false;
+            enemyEl.style.display = 'none'; // Inimigo "morre"
+            victoryScreen.style.display = 'block';
+            clearInterval(playerShoot);
+            clearInterval(enemyShoot);
+            
+            // Efeito simples de explosão
+            container.style.background = "white";
+            setTimeout(() => { container.style.background = "black"; }, 100);
+        }
     }
 
     update();
