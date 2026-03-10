@@ -2,183 +2,85 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Invasão Espacial - Rocket Game</title>
+    <title>Duelo Espacial: Foguete vs IA</title>
     <style>
-        body {
-            margin: 0;
-            background: #020205;
-            color: white;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        #game-screen {
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; }
+        #game-container {
             position: relative;
-            width: 500px;
-            height: 700px;
-            background: radial-gradient(circle at center, #0a0a2a 0%, #000 100%);
-            border: 4px solid #333;
-            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, #1b2735 0%, #090a0f 100%);
         }
-
-        /* Foguete Jogador */
-        .player {
+        
+        /* Estilo dos Foguetes */
+        .ship {
             position: absolute;
             width: 40px;
-            height: 50px;
-            background: #00d4ff;
-            clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
-            bottom: 20px;
-            left: 230px;
+            height: 40px;
             transition: transform 0.1s;
         }
 
-        /* Tiro */
+        #player { background: #00f2ff; clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%); }
+        #enemy { background: #ff0055; clip-path: polygon(50% 100%, 100% 0%, 50% 20%, 0% 0%); }
+
+        /* Tiros */
         .bullet {
             position: absolute;
             width: 4px;
             height: 15px;
-            background: #ffff00;
-            box-shadow: 0 0 10px #ffff00;
+            border-radius: 2px;
         }
+        .player-bullet { background: #00f2ff; box-shadow: 0 0 10px #00f2ff; }
+        .enemy-bullet { background: #ff0055; box-shadow: 0 0 10px #ff0055; }
 
-        /* Inimigo */
-        .enemy {
+        #score-board {
             position: absolute;
-            width: 40px;
-            height: 40px;
-            background: #ff4d4d;
-            clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%);
-            border-radius: 5px;
-        }
-
-        #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            font-size: 1.2rem;
-            z-index: 100;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 20px;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-screen">
-        <div id="ui">Pontos: <span id="score">0</span></div>
-        <div id="player" class="player"></div>
-    </div>
+<div id="game-container">
+    <div id="score-board">Jogador: <span id="p-score">0</span> | Inimigo: <span id="e-score">0</span></div>
+    <div id="player" class="ship"></div>
+    <div id="enemy" class="ship"></div>
+</div>
 
 <script>
-    const screen = document.getElementById('game-screen');
-    const player = document.getElementById('player');
-    const scoreDisplay = document.getElementById('score');
-
-    let score = 0;
-    let playerX = 230;
-    const playerSpeed = 7;
+    const container = document.getElementById('game-container');
+    const playerEl = document.getElementById('player');
+    const enemyEl = document.getElementById('enemy');
+    
+    let pScore = 0, eScore = 0;
+    
+    // Estados iniciais
+    let player = { x: window.innerWidth/2, y: window.innerHeight - 80, speed: 8 };
+    let enemy = { x: window.innerWidth/2, y: 50, speed: 4 };
     let keys = {};
-
-    // Listas para gerenciar objetos
     let bullets = [];
-    let enemies = [];
 
-    // Captura teclas pressionadas
-    document.addEventListener('keydown', e => keys[e.code] = true);
-    document.addEventListener('keyup', e => keys[e.code] = false);
+    // Controles
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // Função para criar tiros
-    function shoot() {
+    function createBullet(x, y, isPlayer) {
         const b = document.createElement('div');
-        b.classList.add('bullet');
-        b.style.left = (playerX + 18) + 'px';
-        b.style.bottom = '70px';
-        screen.appendChild(b);
-        bullets.push({ el: b, y: 70 });
+        b.className = `bullet ${isPlayer ? 'player-bullet' : 'enemy-bullet'}`;
+        b.style.left = x + 18 + 'px';
+        b.style.top = y + 'px';
+        container.appendChild(b);
+        bullets.push({ el: b, x: x + 18, y: y, player: isPlayer });
     }
 
-    // Criar inimigos periodicamente
-    setInterval(() => {
-        const e = document.createElement('div');
-        e.classList.add('enemy');
-        e.style.left = Math.random() * (500 - 40) + 'px';
-        e.style.top = '-50px';
-        screen.appendChild(e);
-        enemies.push({ el: e, y: -50 });
-    }, 1000);
+    // Atirar automaticamente
+    setInterval(() => createBullet(player.x, player.y - 20, true), 400);
+    setInterval(() => createBullet(enemy.x, enemy.y + 40, false), 600);
 
-    // Permitir tiro com Espaço
-    document.addEventListener('keydown', e => {
-        if (e.code === 'Space') shoot();
-    });
-
-    // Loop Principal do Jogo
     function update() {
-        // Movimento do Jogador
-        if (keys['ArrowLeft'] && playerX > 0) playerX -= playerSpeed;
-        if (keys['ArrowRight'] && playerX < 460) playerX += playerSpeed;
-        player.style.left = playerX + 'px';
-
-        // Atualizar Tiros
-        bullets.forEach((bullet, bIndex) => {
-            bullet.y += 10;
-            bullet.el.style.bottom = bullet.y + 'px';
-
-            // Remover tiro se sair da tela
-            if (bullet.y > 700) {
-                bullet.el.remove();
-                bullets.splice(bIndex, 1);
-            }
-        });
-
-        // Atualizar Inimigos
-        enemies.forEach((enemy, eIndex) => {
-            enemy.y += 3;
-            enemy.el.style.top = enemy.y + 'px';
-
-            // Colisão Inimigo vs Jogador
-            const rect1 = player.getBoundingClientRect();
-            const rect2 = enemy.el.getBoundingClientRect();
-
-            if (rect1.left < rect2.right && rect1.right > rect2.left &&
-                rect1.top < rect2.bottom && rect1.bottom > rect2.top) {
-                alert("Fim de Jogo! Pontos: " + score);
-                location.reload();
-            }
-
-            // Colisão Tiro vs Inimigo
-            bullets.forEach((bullet, bIndex) => {
-                const bRect = bullet.el.getBoundingClientRect();
-                const eRect = enemy.el.getBoundingClientRect();
-
-                if (bRect.left < eRect.right && bRect.right > eRect.left &&
-                    bRect.top < eRect.bottom && bRect.bottom > eRect.top) {
-                    
-                    // Explosão (Remover ambos)
-                    enemy.el.remove();
-                    enemies.splice(eIndex, 1);
-                    bullet.el.remove();
-                    bullets.splice(bIndex, 1);
-
-                    score += 10;
-                    scoreDisplay.innerText = score;
-                }
-            });
-
-            // Remover se passar da tela
-            if (enemy.y > 700) {
-                enemy.el.remove();
-                enemies.splice(eIndex, 1);
-            }
-        });
-
-        requestAnimationFrame(update);
-    }
-
-    update();
-</script>
-</body>
-</html>
+        // Movimento Jogador
+        if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+        if (keys['ArrowRight'] && player.x < window.innerWidth - 40) player.x += player.speed;
