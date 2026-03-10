@@ -127,4 +127,58 @@
             bullet.y += 10;
             bullet.el.style.bottom = bullet.y + 'px';
 
-            // Remover tiro
+            // Remover tiro se sair da tela
+            if (bullet.y > 700) {
+                bullet.el.remove();
+                bullets.splice(bIndex, 1);
+            }
+        });
+
+        // Atualizar Inimigos
+        enemies.forEach((enemy, eIndex) => {
+            enemy.y += 3;
+            enemy.el.style.top = enemy.y + 'px';
+
+            // Colisão Inimigo vs Jogador
+            const rect1 = player.getBoundingClientRect();
+            const rect2 = enemy.el.getBoundingClientRect();
+
+            if (rect1.left < rect2.right && rect1.right > rect2.left &&
+                rect1.top < rect2.bottom && rect1.bottom > rect2.top) {
+                alert("Fim de Jogo! Pontos: " + score);
+                location.reload();
+            }
+
+            // Colisão Tiro vs Inimigo
+            bullets.forEach((bullet, bIndex) => {
+                const bRect = bullet.el.getBoundingClientRect();
+                const eRect = enemy.el.getBoundingClientRect();
+
+                if (bRect.left < eRect.right && bRect.right > eRect.left &&
+                    bRect.top < eRect.bottom && bRect.bottom > eRect.top) {
+                    
+                    // Explosão (Remover ambos)
+                    enemy.el.remove();
+                    enemies.splice(eIndex, 1);
+                    bullet.el.remove();
+                    bullets.splice(bIndex, 1);
+
+                    score += 10;
+                    scoreDisplay.innerText = score;
+                }
+            });
+
+            // Remover se passar da tela
+            if (enemy.y > 700) {
+                enemy.el.remove();
+                enemies.splice(eIndex, 1);
+            }
+        });
+
+        requestAnimationFrame(update);
+    }
+
+    update();
+</script>
+</body>
+</html>
