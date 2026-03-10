@@ -2,147 +2,129 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Missão Espacial - Jogo de Foguete</title>
+    <title>Invasão Espacial - Rocket Game</title>
     <style>
         body {
             margin: 0;
-            background: #050510;
-            overflow: hidden;
+            background: #020205;
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            font-family: 'Arial', sans-serif;
-        }
-
-        #game-container {
-            position: relative;
-            width: 400px;
-            height: 600px;
-            border: 2px solid #333;
-            background: linear-gradient(to bottom, #000 0%, #050520 100%);
             overflow: hidden;
         }
 
-        #rocket {
+        #game-screen {
+            position: relative;
+            width: 500px;
+            height: 700px;
+            background: radial-gradient(circle at center, #0a0a2a 0%, #000 100%);
+            border: 4px solid #333;
+            overflow: hidden;
+        }
+
+        /* Foguete Jogador */
+        .player {
             position: absolute;
+            width: 40px;
+            height: 50px;
+            background: #00d4ff;
+            clip-path: polygon(50% 0%, 100% 100%, 50% 80%, 0% 100%);
             bottom: 20px;
-            left: 175px;
-            width: 50px;
-            height: 80px;
-            background: #f0f0f0;
-            clip-path: polygon(50% 0%, 100% 70%, 80% 100%, 20% 100%, 0% 70%);
-            transition: left 0.1s ease-out;
-            box-shadow: 0 10px 20px rgba(255, 69, 0, 0.5);
+            left: 230px;
+            transition: transform 0.1s;
         }
 
-        /* Fogo do motor */
-        #rocket::after {
-            content: '';
+        /* Tiro */
+        .bullet {
             position: absolute;
-            bottom: -15px;
-            left: 25%;
-            width: 50%;
-            height: 20px;
-            background: orange;
-            border-radius: 50%;
-            animation: flicker 0.1s infinite alternate;
+            width: 4px;
+            height: 15px;
+            background: #ffff00;
+            box-shadow: 0 0 10px #ffff00;
         }
 
-        @keyframes flicker {
-            from { transform: scaleY(1); opacity: 0.8; }
-            to { transform: scaleY(1.5); opacity: 1; }
-        }
-
-        .obstacle {
+        /* Inimigo */
+        .enemy {
             position: absolute;
             width: 40px;
             height: 40px;
-            background: #888;
-            border-radius: 10px;
+            background: #ff4d4d;
+            clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%);
+            border-radius: 5px;
         }
 
-        #score {
+        #ui {
             position: absolute;
             top: 10px;
             left: 10px;
-            color: white;
-            font-size: 20px;
-            z-index: 10;
+            font-size: 1.2rem;
+            z-index: 100;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div id="score">Pontos: 0</div>
-        <div id="rocket"></div>
+    <div id="game-screen">
+        <div id="ui">Pontos: <span id="score">0</span></div>
+        <div id="player" class="player"></div>
     </div>
 
-    <script>
-        const rocket = document.getElementById('rocket');
-        const container = document.getElementById('game-container');
-        const scoreElement = document.getElementById('score');
-        
-        let rocketX = 175;
-        let score = 0;
-        let gameActive = true;
+<script>
+    const screen = document.getElementById('game-screen');
+    const player = document.getElementById('player');
+    const scoreDisplay = document.getElementById('score');
 
-        // Movimento do foguete (Teclado)
-        document.addEventListener('keydown', (e) => {
-            if (!gameActive) return;
-            
-            if (e.key === 'ArrowLeft' && rocketX > 0) {
-                rocketX -= 25;
-            } else if (e.key === 'ArrowRight' && rocketX < 350) {
-                rocketX += 25;
-            }
-            rocket.style.left = rocketX + 'px';
-        });
+    let score = 0;
+    let playerX = 230;
+    const playerSpeed = 7;
+    let keys = {};
 
-        // Criar obstáculos (Asteroides)
-        function createObstacle() {
-            if (!gameActive) return;
+    // Listas para gerenciar objetos
+    let bullets = [];
+    let enemies = [];
 
-            const obstacle = document.createElement('div');
-            obstacle.classList.add('obstacle');
-            obstacle.style.left = Math.floor(Math.random() * 360) + 'px';
-            obstacle.style.top = '-50px';
-            container.appendChild(obstacle);
+    // Captura teclas pressionadas
+    document.addEventListener('keydown', e => keys[e.code] = true);
+    document.addEventListener('keyup', e => keys[e.code] = false);
 
-            let obstacleY = -50;
-            const fallInterval = setInterval(() => {
-                obstacleY += 5;
-                obstacle.style.top = obstacleY + 'px';
+    // Função para criar tiros
+    function shoot() {
+        const b = document.createElement('div');
+        b.classList.add('bullet');
+        b.style.left = (playerX + 18) + 'px';
+        b.style.bottom = '70px';
+        screen.appendChild(b);
+        bullets.push({ el: b, y: 70 });
+    }
 
-                // Checar colisão
-                if (obstacleY > 500 && obstacleY < 580) {
-                    let obsX = parseInt(obstacle.style.left);
-                    if (obsX > rocketX - 30 && obsX < rocketX + 40) {
-                        gameOver();
-                    }
-                }
+    // Criar inimigos periodicamente
+    setInterval(() => {
+        const e = document.createElement('div');
+        e.classList.add('enemy');
+        e.style.left = Math.random() * (500 - 40) + 'px';
+        e.style.top = '-50px';
+        screen.appendChild(e);
+        enemies.push({ el: e, y: -50 });
+    }, 1000);
 
-                // Remover obstáculo e pontuar
-                if (obstacleY > 600) {
-                    clearInterval(fallInterval);
-                    container.removeChild(obstacle);
-                    score++;
-                    scoreElement.innerText = `Pontos: ${score}`;
-                }
+    // Permitir tiro com Espaço
+    document.addEventListener('keydown', e => {
+        if (e.code === 'Space') shoot();
+    });
 
-                if (!gameActive) clearInterval(fallInterval);
-            }, 20);
-        }
+    // Loop Principal do Jogo
+    function update() {
+        // Movimento do Jogador
+        if (keys['ArrowLeft'] && playerX > 0) playerX -= playerSpeed;
+        if (keys['ArrowRight'] && playerX < 460) playerX += playerSpeed;
+        player.style.left = playerX + 'px';
 
-        function gameOver() {
-            gameActive = false;
-            alert(`GAME OVER! Sua pontuação: ${score}`);
-            location.reload(); // Recarrega a página para reiniciar
-        }
+        // Atualizar Tiros
+        bullets.forEach((bullet, bIndex) => {
+            bullet.y += 10;
+            bullet.el.style.bottom = bullet.y + 'px';
 
-        // Gera um obstáculo a cada 1.5 segundos
-        setInterval(createObstacle, 1500);
-    </script>
-</body>
-</html>
+            // Remover tiro
