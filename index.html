@@ -2,115 +2,165 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Fundo Sistema Solar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Shooter - Sobrevivência</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: #050505;
+            background-color: #1a1a1a;
+            font-family: Arial, sans-serif;
         }
         canvas {
             display: block;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
 
-<canvas id="solarSystem"></canvas>
+    <div id="ui">Pontos: <span id="score">0</span></div>
+    <canvas id="gameCanvas"></canvas>
 
-<script>
-    const canvas = document.getElementById('solarSystem');
-    const ctx = canvas.getContext('2d');
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
 
-    let width, height;
-    const planets = [];
-    const stars = [];
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-    // Configurações dos planetas (distância, raio, velocidade, cor)
-    const planetConfig = [
-        { dist: 60, radius: 4, speed: 0.04, color: '#A5A5A5' }, // Mercúrio
-        { dist: 90, radius: 7, speed: 0.02, color: '#E3BB76' }, // Vênus
-        { dist: 130, radius: 8, speed: 0.015, color: '#2271B3' }, // Terra
-        { dist: 170, radius: 6, speed: 0.01, color: '#E27B58' }, // Marte
-        { dist: 240, radius: 15, speed: 0.005, color: '#D39C7E' } // Júpiter
-    ];
+        let score = 0;
+        let gameActive = true;
 
-    function init() {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
+        // Configurações do Jogador
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 20,
+            color: '#3498db',
+            speed: 5
+        };
 
-        // Gerar estrelas de fundo
-        stars.length = 0;
-        for (let i = 0; i < 400; i++) {
-            stars.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 1.5,
-                opacity: Math.random()
+        const keys = {};
+        const bullets = [];
+        const zombies = [];
+
+        // Input de teclado
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        // Atirar
+        window.addEventListener('mousedown', (e) => {
+            if (!gameActive) return;
+            const angle = Math.atan2(e.clientY - player.y, e.clientX - player.x);
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(angle) * 10,
+                vy: Math.sin(angle) * 10,
+                radius: 5
+            });
+        });
+
+        // Criar Zumbis
+        function spawnZombie() {
+            if (!gameActive) return;
+            let x, y;
+            if (Math.random() < 0.5) {
+                x = Math.random() < 0.5 ? 0 - 30 : canvas.width + 30;
+                y = Math.random() * canvas.height;
+            } else {
+                x = Math.random() * canvas.width;
+                y = Math.random() < 0.5 ? 0 - 30 : canvas.height + 30;
+            }
+            zombies.push({ x, y, size: 30, speed: 2 });
+            setTimeout(spawnZombie, Math.max(500, 2000 - score * 10)); // Dificuldade aumenta
+        }
+
+        function update() {
+            if (!gameActive) return;
+
+            // Movimento do Jogador
+            if (keys['KeyW'] && player.y > 0) player.y -= player.speed;
+            if (keys['KeyS'] && player.y < canvas.height) player.y += player.speed;
+            if (keys['KeyA'] && player.x > 0) player.x -= player.speed;
+            if (keys['KeyD'] && player.x < canvas.width) player.x += player.speed;
+
+            // Atualizar Balas
+            bullets.forEach((bullet, bIndex) => {
+                bullet.x += bullet.vx;
+                bullet.y += bullet.vy;
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(bIndex, 1);
+                }
+            });
+
+            // Atualizar Zumbis
+            zombies.forEach((zombie, zIndex) => {
+                const angle = Math.atan2(player.y - zombie.y, player.x - zombie.x);
+                zombie.x += Math.cos(angle) * zombie.speed;
+                zombie.y += Math.sin(angle) * zombie.speed;
+
+                // Colisão Zumbi vs Jogador
+                const dist = Math.hypot(player.x - zombie.x, player.y - zombie.y);
+                if (dist < player.radius + zombie.size / 2) {
+                    gameActive = false;
+                    alert("Gamer Over! Você fez " + score + " pontos.");
+                    location.reload();
+                }
+
+                // Colisão Zumbi vs Bala
+                bullets.forEach((bullet, bIndex) => {
+                    const distBala = Math.hypot(bullet.x - zombie.x, bullet.y - zombie.y);
+                    if (distBala < bullet.radius + zombie.size / 2) {
+                        zombies.splice(zIndex, 1);
+                        bullets.splice(bIndex, 1);
+                        score += 10;
+                        scoreElement.innerText = score;
+                    }
+                });
             });
         }
 
-        // Inicializar ângulos dos planetas
-        planets.length = 0;
-        planetConfig.forEach(p => {
-            planets.push({ ...p, angle: Math.random() * Math.PI * 2 });
-        });
-    }
+        function draw() {
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.3)'; // Efeito de rastro
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    function draw() {
-        ctx.fillStyle = '#050505';
-        ctx.fillRect(0, 0, width, height);
-
-        // Desenhar Estrelas
-        ctx.fillStyle = "white";
-        stars.forEach(s => {
-            ctx.globalAlpha = s.opacity;
+            // Desenhar Jogador
             ctx.beginPath();
-            ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
             ctx.fill();
-        });
-        ctx.globalAlpha = 1.0;
+            ctx.closePath();
 
-        const centerX = width / 2;
-        const centerY = height / 2;
+            // Desenhar Balas
+            ctx.fillStyle = '#f1c40f';
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
 
-        // Desenhar Sol
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 25, 0, Math.PI * 2);
-        ctx.shadowBlur = 30;
-        ctx.shadowColor = "yellow";
-        ctx.fillStyle = "#FFD700";
-        ctx.fill();
-        ctx.shadowBlur = 0;
+            // Desenhar Zumbis
+            ctx.fillStyle = '#2ecc71';
+            zombies.forEach(zombie => {
+                ctx.fillRect(zombie.x - zombie.size/2, zombie.y - zombie.size/2, zombie.size, zombie.size);
+            });
 
-        // Desenhar Órbitas e Planetas
-        planets.forEach(p => {
-            // Órbita
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, p.dist, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
-            ctx.stroke();
+            update();
+            requestAnimationFrame(draw);
+        }
 
-            // Posição do Planeta
-            const px = centerX + Math.cos(p.angle) * p.dist;
-            const py = centerY + Math.sin(p.angle) * p.dist;
-
-            ctx.beginPath();
-            ctx.arc(px, py, p.radius, 0, Math.PI * 2);
-            ctx.fillStyle = p.color;
-            ctx.fill();
-
-            // Atualizar ângulo para o próximo frame
-            p.angle += p.speed;
-        });
-
-        requestAnimationFrame(draw);
-    }
-
-    window.addEventListener('resize', init);
-    init();
-    draw();
-</script>
-
+        spawnZombie();
+        draw();
+    </script>
 </body>
 </html>
