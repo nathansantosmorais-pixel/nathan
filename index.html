@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zombie Shooter - Com Sistema de Vida</title>
+    <title>Zombie Shooter - Versão Redonda</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         canvas { display: block; }
@@ -57,7 +57,7 @@
             radius: 20,
             color: '#3498db',
             speed: 5,
-            hp: 100, // Vida máxima
+            hp: 100,
             maxHp: 100
         };
 
@@ -90,9 +90,19 @@
                 x = Math.random() * canvas.width;
                 y = Math.random() < 0.5 ? -30 : canvas.height + 30;
             }
-            // Zumbis agora têm velocidade variada
-            zombies.push({ x, y, size: 30, speed: 1.5 + Math.random() });
-            setTimeout(spawnZombie, Math.max(400, 1500 - score * 5));
+            
+            // Zumbis com velocidade variada
+            zombies.push({ 
+                x, 
+                y, 
+                radius: 15, // Agora usamos raio para círculos
+                speed: 1.2 + Math.random() 
+            });
+
+            // AUMENTADO: O tempo de spawn agora é maior (mínimo 1s, começa em 2.5s)
+            // Isso faz com que apareçam menos zumbis na tela.
+            let nextSpawn = Math.max(1000, 2500 - score * 3);
+            setTimeout(spawnZombie, nextSpawn);
         }
 
         function update() {
@@ -116,22 +126,21 @@
                 zombie.x += Math.cos(angle) * zombie.speed;
                 zombie.y += Math.sin(angle) * zombie.speed;
 
-                // COLISÃO COM JOGADOR (Dano por tempo)
                 const dist = Math.hypot(player.x - zombie.x, player.y - zombie.y);
-                if (dist < player.radius + zombie.size / 2) {
-                    player.hp -= 0.5; // Perde vida enquanto encosta
+                if (dist < player.radius + zombie.radius) {
+                    player.hp -= 0.5;
                     healthBar.style.width = (player.hp / player.maxHp * 100) + "%";
                     
                     if (player.hp <= 0) {
                         gameActive = false;
-                        alert("Fim de Jogo! Você sobreviveu o bastante para fazer " + score + " pontos.");
+                        alert("Fim de Jogo! Pontos: " + score);
                         location.reload();
                     }
                 }
 
                 bullets.forEach((bullet, bIndex) => {
                     const distBala = Math.hypot(bullet.x - zombie.x, bullet.y - zombie.y);
-                    if (distBala < bullet.radius + zombie.size / 2) {
+                    if (distBala < bullet.radius + zombie.radius) {
                         zombies.splice(zIndex, 1);
                         bullets.splice(bIndex, 1);
                         score += 10;
@@ -153,7 +162,7 @@
             ctx.shadowColor = player.color;
             ctx.fill();
             ctx.closePath();
-            ctx.shadowBlur = 0; // Reset sombra para outros elementos
+            ctx.shadowBlur = 0;
 
             // Balas
             ctx.fillStyle = '#fffa65';
@@ -163,10 +172,13 @@
                 ctx.fill();
             });
 
-            // Zumbis
+            // ZUMBIS AGORA SÃO REDONDOS
             ctx.fillStyle = '#2ecc71';
             zombies.forEach(z => {
-                ctx.fillRect(z.x - z.size/2, z.y - z.size/2, z.size, z.size);
+                ctx.beginPath();
+                ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.closePath();
             });
 
             update();
